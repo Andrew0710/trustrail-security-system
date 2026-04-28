@@ -1,0 +1,1 @@
+STRIPE_KEY = 'sk_test_51MZ8xyz123456789'
