@@ -251,7 +251,7 @@ TrustRail's detection is based on the centralized rule library in `scanner/rules
 | `gcp_secret` | `AIza[0-9A-Za-z-_]{35}` | `AIzaSyD-EXAMPLEKEY` |
 | `azure_secret` | `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}` | `12345678-1234-1234-1234-123456789abc` |
 | `ssh_private_key` | `-----BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY-----` | `-----BEGIN RSA PRIVATE KEY-----` |
-| `stripe_secret_key` | `sk_live_[0-9a-zA-Z]{24}` | `sk_live_1234567890abcdefghijklmn` |
+| `stripe_secret_key` | `sk_test_[0-9a-zA-Z]{24}` | `sk_test_1234567890abcdefghijklmn` |
 | `slack_webhook` | `https://hooks\.slack\.com/services/T[A-Z0-9]{8}/B[A-Z0-9]{8}/[A-Za-z0-9]{24}` | `https://hooks.slack.com/services/...` |
 | `docker_config` | `"auth"\s*:\s*"[^"]{20,}"` | `"auth": "eyJ1c2VyIjoi..."` |
 | `db_connection_string` | `(postgresql|mysql|redis)://[^:]+:[^@]+@[^/]+` | `postgresql://user:pass@localhost/db` |

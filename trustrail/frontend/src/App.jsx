@@ -46,7 +46,7 @@ r = requests.get("https://api.github.com/user", headers=headers)`
     code: `const stripe = require('stripe');
 
 // Stripe secret key in code (DANGER)
-const stripeSecret = "sk_live_1234567890abcdef1234567890abcdef";
+const stripeSecret = "sk_test_1234567890abcdef1234567890abcdef";
 
 const stripeClient = stripe(stripeSecret);
 const charges = await stripeClient.charges.list();`

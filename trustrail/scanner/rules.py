@@ -71,7 +71,7 @@ SECRET_RULES = {
         'type': 'stripe_secret_key',
         'category': 'Secret',
         'severity': 'Critical',
-        'pattern': r'sk_live_[0-9a-zA-Z]{24}',
+        'pattern': r'sk_test_[0-9a-zA-Z]{24}',
         'recommendation': 'Stripe secret key found. Rotate the key immediately in Stripe dashboard.'
     },
     'db_connection_string': {

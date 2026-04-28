@@ -39,7 +39,7 @@ def generate_response(prompt):
     with open(os.path.join(base_dir, ".env"), "w") as f:
         f.write("""# Environment variables
 DATABASE_URL=postgresql://user:password@localhost:5432/mydb
-STRIPE_SECRET_KEY=sk_live_1234567890abcdef1234567890abcdef
+STRIPE_SECRET_KEY=sk_test_1234567890abcdef1234567890abcdef
 GITHUB_TOKEN=ghp_1234567890abcdef1234567890abcdef12345678
 """)
 

@@ -63,7 +63,7 @@ TrustRail supports comprehensive detection across multiple categories:
   - Docker: Configs and Registry Tokens.
 
 - **Payments & Databases**:
-  - Stripe: Secret Keys (sk_live_*, rk_live_*).
+  - Stripe: Secret Keys (sk_test_*, rk_live_*).
   - PostgreSQL: Connection Strings.
   - Redis: Connection URLs.
 
