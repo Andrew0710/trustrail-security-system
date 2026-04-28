@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: trustrail
+Version: 0.1.0
+Summary: Shift-Left Security ecosystem to prevent sensitive data leaks
+Requires-Python: >=3.8
+Requires-Dist: Django>=4.0
+Requires-Dist: djangorestframework>=3.14
+Requires-Dist: django-cors-headers>=4.0
+Requires-Dist: requests>=2.31.0
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

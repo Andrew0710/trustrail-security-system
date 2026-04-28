@@ -1,0 +1,1 @@
+client = OpenAI(api_key="sk-os.getenv('AZURE_TOKEN')")

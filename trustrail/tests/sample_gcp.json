@@ -1,0 +1,5 @@
+# Sample GCP key
+{
+  "type": "service_account",
+  "private_key_id": "abcdef1234567890abcdef1234567890abcdef12"
+}

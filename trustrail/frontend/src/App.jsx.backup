@@ -1,0 +1,610 @@
+import { useState, useEffect } from 'react'
+import { Shield, AlertTriangle, TrendingUp, RefreshCw, Play, FileText, Code, Trash2, Wand, Key } from 'lucide-react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
+
+// Diverse sample pool of vulnerable code across languages
+const samplePool = [
+  {
+    name: 'Python - AWS Access Key',
+    code: `import boto3
+
+# AWS credentials hardcoded (CRITICAL)
+AWS_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE"
+AWS_SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+s3 = boto3.client(
+    's3',
+    aws_access_key_id=AWS_ACCESS_KEY,
+    aws_secret_access_key=AWS_SECRET_KEY
+)`
+  },
+  {
+    name: 'Python - OpenAI API Key',
+    code: `import openai
+
+# OpenAI API key exposed
+openai.api_key = "sk-1234567890abcdef1234567890abcdef1234567890abcdef"
+
+response = openai.ChatCompletion.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Hello"}]
+)`
+  },
+  {
+    name: 'Python - GitHub PAT',
+    code: `import requests
+
+# GitHub Personal Access Token
+GITHUB_TOKEN = "ghp_1234567890abcdef1234567890abcdef12345678"
+
+headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+r = requests.get("https://api.github.com/user", headers=headers)`
+  },
+  {
+    name: 'JavaScript/Node - Stripe Secret',
+    code: `const stripe = require('stripe');
+
+// Stripe secret key in code (DANGER)
+const stripeSecret = "sk_live_1234567890abcdef1234567890abcdef";
+
+const stripeClient = stripe(stripeSecret);
+const charges = await stripeClient.charges.list();`
+  },
+  {
+    name: 'JavaScript - AWS SDK',
+    code: `const AWS = require('aws-sdk');
+
+// Hardcoded AWS credentials
+const s3 = new AWS.S3({
+  accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+  secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+  region: 'us-east-1'
+});`
+  },
+  {
+    name: 'Go - Database Connection String',
+    code: `package main
+
+import (
+    "database/sql"
+    _ "github.com/lib/pq"
+)
+
+// Connection string with password embedded
+var db *sql.DB
+
+func connect() {
+    var err error
+    db, err = sql.Open("postgres", "postgresql://user:SuperSecretPass123@localhost:5432/mydb?sslmode=disable")
+    if err != nil {
+        panic(err)
+    }
+}`
+  },
+  {
+    name: 'PHP - Database Credentials',
+    code: `<?php
+// PHP config with exposed DB password
+$db_host = "localhost";
+$db_user = "root";
+$db_pass = "MySup3rS3cr3tP@ssw0rd"; // EXPOSED!
+
+$conn = mysqli_connect($db_host, $db_user, $db_pass);
+?>`
+  },
+  {
+    name: 'Java - Spring Properties',
+    code: `@Configuration
+public class AppConfig {
+    // Hardcoded database password
+    @Value("${db.password}")
+    private String dbPassword = "P@ssw0rd123!";
+    
+    @Bean
+    public DataSource dataSource() {
+        DriverManagerDataSource ds = new DriverManagerDataSource();
+        ds.setPassword(dbPassword); // EXPOSED
+        return ds;
+    }
+}`
+  },
+  {
+    name: 'YAML Config - API Keys',
+    code: `# config.yaml - secrets in plaintext
+database:
+  host: localhost
+  port: 5432
+  user: admin
+  password: "MyDatabaseSecret123"  # EXPOSED!
+
+services:
+  slack:
+    webhook: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXX"  # EXPOSED!
+  openai:
+    api_key: "sk-abcdefghijklmnopqrstuvwxyz1234567890"  # EXPOSED!`
+  },
+  {
+    name: 'Shell Script - AWS Keys',
+    code: `#!/bin/bash
+# deploy.sh -糟糕! Credentials in script
+
+export AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"
+export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+export AWS_DEFAULT_REGION="us-east-1"
+
+# Deploy
+aws s3 sync build/ s3://mybucket/ --delete`
+  },
+  {
+    name: 'Python - OS Command Injection',
+    code: `import os
+
+def run_command(user_input):
+    # DANGEROUS: shell=True with user input
+    cmd = f"ping -c 1 {user_input}"
+    os.system(cmd)  # Command injection vulnerability!
+    # Also: subprocess.Popen(cmd, shell=True) is dangerous`
+  },
+  {
+    name: 'Python - SQL Injection',
+    code: `import sqlite3
+
+def get_user(username):
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    # DANGEROUS: string formatting in SQL
+    query = f"SELECT * FROM users WHERE username = '{username}'"
+    cursor.execute(query)  # SQL injection vulnerability!
+    
+    return cursor.fetchone()`
+  },
+  {
+    name: 'Python - Weak Cryptography',
+    code: `import hashlib
+
+def hash_password(password):
+    # WEAK: MD5 is broken
+    return hashlib.md5(password.encode()).hexdigest()
+
+def verify_token(token):
+    # WEAK: SHA1 is deprecated
+    return hashlib.sha1(token.encode()).hexdigest()`
+  },
+  {
+    name: 'Python - Eval Injection',
+    code: `def process_config(config_str):
+    # DANGEROUS: eval on user input
+    config = eval(config_str)  # Code injection!
+    return config
+
+# Usage
+user_config = input("Enter config: ")
+process_config(user_config)  # Critical vulnerability!`
+  },
+  {
+    name: 'Python - Hardcoded Password',
+    code: `class DBConnector:
+    def __init__(self):
+        # Hardcoded credentials
+        self.password = "AdminPass123!"  # EXPOSED!
+        self.api_key = "ghp_1234567890abcdef1234567890abcdef12345678"  # EXPOSED!
+    
+    def connect(self):
+        # Connect to database using hardcoded password
+        pass`
+  },
+  {
+    name: 'JSON - API Keys',
+    code: `{
+  "github": {
+    "token": "ghp_1234567890abcdef1234567890abcdef12345678"
+  },
+  "slack": {
+    "webhook": "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXX"
+  },
+  "openai": {
+    "api_key": "sk-1234567890abcdef1234567890abcdef1234567890abcdef"
+  }
+}`
+  }
+];
+
+function App() {
+  const [incidents, setIncidents] = useState([])
+  const [stats, setStats] = useState({ total: 0, topTypes: [], healthScore: 100 })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [snippet, setSnippet] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [toast, setToast] = useState(null)
+  const [selectedIncident, setSelectedIncident] = useState(null)
+  const [showModal, setShowModal] = useState(false)
+  const [lastSampleIndex, setLastSampleIndex] = useState(-1)
+
+  useEffect(() => {
+    fetchIncidents()
+  }, [])
+
+  const fetchIncidents = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+      const response = await fetch(`${apiUrl}/api/incidents/`)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const data = await response.json()
+      setIncidents(data)
+      calculateStats(data)
+    } catch (error) {
+      console.error('Error fetching incidents:', error)
+      setError('Failed to load incidents. Please check the backend.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const calculateStats = (data) => {
+    const total = data.length
+    const typeCount = {}
+    data.forEach(incident => {
+      typeCount[incident.secret_type] = (typeCount[incident.secret_type] || 0) + 1
+    })
+    const topTypes = Object.entries(typeCount).sort((a, b) => b[1] - a[1]).slice(0, 3)
+    const healthScore = Math.max(0, 100 - total * 5)
+    setStats({ total, topTypes, healthScore })
+  }
+
+  const showToast = (message) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const scanSnippet = async () => {
+    if (!snippet.trim()) return
+    setScanning(true)
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+      const response = await fetch(`${apiUrl}/api/scan-snippet/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: snippet })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        await fetchIncidents()
+        setSnippet('')
+        const secretCount = data.findings.filter(f => !f.error).length
+        showToast(secretCount > 0 ? `Scan complete: ${secretCount} secrets found` : 'Code is clean!')
+      } else {
+        showToast('Scan failed')
+      }
+    } catch (error) {
+      console.error('Scan error:', error)
+      showToast('Scan error')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  const loadSample = () => {
+    // Pick a random sample, avoiding the previous one if possible
+    let newIndex
+    do {
+      newIndex = Math.floor(Math.random() * samplePool.length)
+    } while (newIndex === lastSampleIndex && samplePool.length > 1)
+    
+    setLastSampleIndex(newIndex)
+    const sample = samplePool[newIndex]
+    setSnippet(sample.code)
+    showToast(`Loaded: ${sample.name}`)
+  }
+
+  const clearAll = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+      const response = await fetch(`${apiUrl}/api/incidents/`, {
+        method: 'DELETE'
+      })
+      if (response.ok) {
+        setIncidents([])
+        setStats({ total: 0, topTypes: [], healthScore: 100 })
+        showToast('All incidents cleared')
+      } else {
+        showToast('Failed to clear incidents')
+      }
+    } catch (error) {
+      console.error('Error clearing incidents:', error)
+      showToast('Error clearing incidents')
+    }
+  }
+
+  const openIncidentDetails = (incident) => {
+    setSelectedIncident(incident)
+    setShowModal(true)
+  }
+
+  const closeModal = () => {
+    setShowModal(false)
+    setSelectedIncident(null)
+  }
+
+  const handleRemediate = async () => {
+    if (!selectedIncident) return
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+      const response = await fetch(`${apiUrl}/api/remediate/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident_id: selectedIncident.id })
+      })
+      if (response.ok) {
+        showToast('Fixed! Secret moved to .env')
+        closeModal()
+        await fetchIncidents()
+      } else {
+        const error = await response.json()
+        showToast(`Remediation failed: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Remediation error:', error)
+      showToast('Remediation error')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <Shield className="h-16 w-16 text-green-400 mx-auto mb-4 animate-pulse" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-400 mx-auto"></div>
+          <p className="mt-4 text-xl font-mono">Initializing TrustRail Security...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+          <p className="text-red-400 text-xl mb-4 font-mono">Connection Error: {error}</p>
+          <button
+            onClick={fetchIncidents}
+            className="bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold py-2 px-4 rounded border border-slate-600"
+          >
+            <RefreshCw className="inline h-4 w-4 mr-2" />
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="min-h-screen bg-slate-900 text-slate-100 font-mono">
+        <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Shield className="h-8 w-8 text-green-400 mr-2" />
+              <h1 className="text-2xl font-bold text-green-400">TrustRail</h1>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={fetchIncidents}
+                className="bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold py-2 px-4 rounded border border-slate-600"
+              >
+                <RefreshCw className="inline h-4 w-4 mr-2" />
+                Refresh
+              </button>
+              <button
+                onClick={clearAll}
+                className="bg-red-600 hover:bg-red-700 text-slate-100 font-bold py-2 px-4 rounded border border-red-600"
+              >
+                <Trash2 className="inline h-4 w-4 mr-2" />
+                Clear All
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto p-4">
+          {/* Stats Cards */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-slate-800/30 backdrop-blur-md p-6 rounded-lg border border-slate-700/50">
+              <div className="flex items-center mb-2">
+                <AlertTriangle className="h-5 w-5 text-red-400 mr-2" />
+                <h2 className="text-lg font-semibold text-slate-200">Secrets Blocked</h2>
+              </div>
+              <p className="text-3xl font-bold text-red-400">{stats.total}</p>
+            </div>
+            <div className="bg-slate-800/30 backdrop-blur-md p-6 rounded-lg border border-slate-700/50">
+              <div className="flex items-center mb-2">
+                <TrendingUp className="h-5 w-5 text-blue-400 mr-2" />
+                <h2 className="text-lg font-semibold text-slate-200">Top Types</h2>
+              </div>
+              <ul className="space-y-1">
+                {(stats?.topTypes || []).length === 0 ? (
+                  <li className="text-slate-500 font-mono text-sm">No data</li>
+                ) : (
+                  (stats?.topTypes || []).map(([type, count]) => (
+                    <li key={type} className="text-green-400 font-mono text-sm">{type}: {count}</li>
+                  ))
+                )}
+              </ul>
+            </div>
+            <div className="bg-slate-800/30 backdrop-blur-md p-6 rounded-lg border border-slate-700/50">
+              <div className="flex items-center mb-2">
+                <Shield className="h-5 w-5 text-yellow-400 mr-2" />
+                <h2 className="text-lg font-semibold text-slate-200">Security Score</h2>
+              </div>
+              <p className="text-3xl font-bold text-yellow-400">{stats.healthScore}%</p>
+            </div>
+          </section>
+
+          {/* Scan Playground */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold mb-4 text-cyan-400 flex items-center">
+              <Code className="h-6 w-6 mr-2" />
+              Scan Playground
+            </h2>
+            <div className="bg-slate-800/30 backdrop-blur-md p-6 rounded-lg border border-slate-700/50">
+              <textarea
+                value={snippet}
+                onChange={(e) => setSnippet(e.target.value)}
+                placeholder="Paste your code here to scan for secrets..."
+                className="w-full h-48 bg-slate-900 border border-slate-600 rounded p-4 text-slate-100 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-400"
+              />
+              <div className="flex gap-4 mt-4">
+                <button
+                  onClick={loadSample}
+                  className="bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold py-2 px-4 rounded border border-slate-600"
+                >
+                  <FileText className="inline h-4 w-4 mr-2" />
+                  Try Sample
+                </button>
+                <button
+                  onClick={scanSnippet}
+                  disabled={scanning || !snippet.trim()}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-slate-600 text-white font-bold py-2 px-4 rounded border border-green-600 disabled:border-slate-600 flex items-center"
+                >
+                  {scanning ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="inline h-4 w-4 mr-2" />
+                      Scan Code
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* Live Feed */}
+          <section>
+            <h2 className="text-2xl font-bold mb-4 text-cyan-400 flex items-center">
+              <AlertTriangle className="h-6 w-6 mr-2" />
+              Incident Feed
+            </h2>
+            <div className="bg-slate-800/30 backdrop-blur-md rounded-lg p-6 border border-slate-700/50 max-h-96 overflow-y-auto">
+              {incidents.length === 0 ? (
+                <p className="text-slate-500 text-center py-8 font-mono">No incidents detected. Scan some code to get started.</p>
+              ) : (
+                incidents.map((incident) => (
+                  <div key={incident.id} className="border-b border-slate-700/50 py-3 last:border-b-0 cursor-pointer hover:bg-slate-700/20 transition-colors" onClick={() => openIncidentDetails(incident)}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <Key className="h-4 w-4 text-red-400" />
+                        <div>
+                          <p className="text-red-400 font-semibold font-mono text-sm">{incident.secret_type}</p>
+                          <p className="text-slate-300 font-mono text-sm">File: <code className="bg-slate-700 px-1 rounded">{incident.file_name}</code></p>
+                        </div>
+                      </div>
+                      <p className="text-slate-500 text-xs font-mono">
+                        {new Date(incident.timestamp).toLocaleString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </main>
+      </div>
+
+      {/* Modal */}
+      {showModal && selectedIncident && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-slate-800/95 backdrop-blur-md border border-slate-700 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-green-400 flex items-center gap-2">
+                <Key className="h-5 w-5 text-red-400" />
+                Secret Detected
+              </h3>
+              <button onClick={closeModal} className="text-slate-400 hover:text-slate-200 text-2xl">&times;</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Secret Type</label>
+                <p className="text-red-400 font-mono">{selectedIncident.secret_type}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="block text-sm font-medium text-slate-300 mb-1">File Name</label>
+                <p className="text-slate-300 font-mono">{selectedIncident.file_name}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Code Snippet</label>
+                {selectedIncident.code_snippet ? (
+                  <SyntaxHighlighter
+                    language="python"
+                    style={vscDarkPlus}
+                    customStyle={{
+                      backgroundColor: '#1e1e1e',
+                      padding: '16px',
+                      borderRadius: '8px',
+                      overflow: 'auto'
+                    }}
+                    showLineNumbers
+                  >
+                    {selectedIncident.code_snippet}
+                  </SyntaxHighlighter>
+                ) : (
+                  <p className="text-slate-500 font-mono text-sm">No snippet available</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Recommendation</label>
+                <p className="text-yellow-400 font-mono text-sm">{selectedIncident.description}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Detected At</label>
+                <p className="text-slate-500 font-mono text-sm">
+                  {new Date(selectedIncident.timestamp).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })}
+                </p>
+              </div>
+            </div>
+            <div className="pt-4 border-t border-slate-700 mt-6">
+              <button
+                onClick={handleRemediate}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg border border-indigo-500 flex items-center justify-center"
+              >
+                <Wand className="inline h-5 w-5 mr-2" />
+                Fix for me
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 bg-slate-800/90 backdrop-blur-md border border-slate-700 rounded-lg p-4 text-slate-100 font-mono text-sm shadow-lg">
+          {toast}
+        </div>
+      )}
+    </>
+  )
+}
+
+export default App
